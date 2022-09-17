@@ -291,7 +291,7 @@ def img2img(prompt: str = '', init_info: any = None, init_info_mask: any = None,
 					correction_target,
 					channel_axis=2
 				    ), cv2.COLOR_LAB2RGB).astype("uint8"))
-				if mask_restore is True:
+				if mask_restore is True and init_mask is not None:
 					color_mask = init_mask.filter(ImageFilter.GaussianBlur(mask_blur_strength))
 					color_mask = color_mask.convert('L')
 					source_image = input_image.convert('RGB')
@@ -483,7 +483,7 @@ def layout():
 			image_holder = st.empty()
 	
 			uploaded_images = st.file_uploader(
-						"Upload Image", accept_multiple_files=False, type=["png", "jpg", "jpeg"],
+						"Upload Image", accept_multiple_files=False, type=["png", "jpg", "jpeg", "webp"],
 						help="Upload an image which will be used for the image to image generation.",
 					)
 			if uploaded_images:
@@ -494,7 +494,7 @@ def layout():
 			mask_holder = st.empty()
 	
 			uploaded_masks = st.file_uploader(
-						"Upload Mask", accept_multiple_files=False, type=["png", "jpg", "jpeg"],
+						"Upload Mask", accept_multiple_files=False, type=["png", "jpg", "jpeg", "webp"],
 						help="Upload an mask image which will be used for masking the image to image generation.",
 					)
 			if uploaded_masks:

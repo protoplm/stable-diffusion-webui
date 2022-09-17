@@ -147,14 +147,13 @@ def diffuse(
 								
 				#scale and decode the image latents with vae
 				cond_latents_2 = 1 / 0.18215 * cond_latents
-				image_2 = pipe.vae.decode(cond_latents_2)
+				image = pipe.vae.decode(cond_latents_2)
 				
 				# generate output numpy image as uint8
-				image_2 = (image_2 / 2 + 0.5).clamp(0, 1)
-				image_2 = image_2.cpu().permute(0, 2, 3, 1).numpy()
-				image_2 = (image_2[0] * 255).astype(np.uint8)		
+				image = torch.clamp((image["sample"] + 1.0) / 2.0, min=0.0, max=1.0)
+				image = transforms.ToPILImage()(image.squeeze_(0))   
 				
-				st.session_state["preview_image"].image(image_2)
+				st.session_state["preview_image"].image(image)
 				
 				step_counter = 0
 		
@@ -186,15 +185,6 @@ def diffuse(
 		)
 		st.session_state["progress_bar"].progress(percent if percent < 100 else 100)		
 
-	# scale and decode the image latents with vae
-	cond_latents = 1 / 0.18215 * cond_latents
-	image = pipe.vae.decode(cond_latents)
-
-	# generate output numpy image as uint8
-	image = (image / 2 + 0.5).clamp(0, 1)
-	image = image.cpu().permute(0, 2, 3, 1).numpy()
-	image = (image[0] * 255).astype(np.uint8)
-
 	return image
 
 #
@@ -219,10 +209,12 @@ def txt2vid(
                 weights_path = "CompVis/stable-diffusion-v1-4",
                 scheduler="klms",  # choices: default, ddim, klms
                 disable_tqdm = False,
+                fp = None,
                 #-----------------------------------------------
                 beta_start = 0.0001,
                 beta_end = 0.00012,
-                beta_schedule = "scaled_linear"
+                beta_schedule = "scaled_linear",
+                starting_image=None
                 ):	
 	"""
 	prompt = ["blueberry spaghetti", "strawberry spaghetti"], # prompt to dream about
@@ -378,10 +370,14 @@ def txt2vid(
 
 	st.session_state["pipe"].scheduler = SCHEDULERS[scheduler]
 	
+	if fp is not None and hasattr(st.session_state["pipe"], "embedding_manager"):
+		st.session_state["pipe"].embedding_manager.load(fp['name'])	
+	
 	# get the conditional text embeddings based on the prompt
 	text_input = st.session_state["pipe"].tokenizer(prompts, padding="max_length", max_length=st.session_state["pipe"].tokenizer.model_max_length, truncation=True, return_tensors="pt")
 	cond_embeddings = st.session_state["pipe"].text_encoder(text_input.input_ids.to(torch_device))[0] # shape [1, 77, 768]
-
+	
+	
 	# sample a source
 	init1 = torch.randn((1, st.session_state["pipe"].unet.in_channels, height // 8, width // 8), device=torch_device)
 
@@ -423,15 +419,15 @@ def txt2vid(
 				with autocast("cuda"):
 					image = diffuse(st.session_state["pipe"], cond_embeddings, init, num_inference_steps, cfg_scale, eta)
 
-				im = Image.fromarray(image)
+				#im = Image.fromarray(image)
 				outpath = os.path.join(full_path, 'frame%06d.png' % frame_index)
-				im.save(outpath, quality=quality)
+				image.save(outpath, quality=quality)
 
 				# send the image to the UI to update it
 				#st.session_state["preview_image"].image(im) 	
 
 				#append the frames to the frames list so we can use them later.
-				frames.append(np.asarray(im))
+				frames.append(np.asarray(image))
 
 				#increase frame_index counter.
 				frame_index += 1
@@ -481,7 +477,7 @@ def txt2vid(
                 Took { round(time_diff, 2) }s total ({ round(time_diff/(max_frames),2) }s per image)
                 Peak memory usage: { -(mem_max_used // -1_048_576) } MiB / { -(mem_total // -1_048_576) } MiB / { round(mem_max_used/mem_total*100, 3) }%'''
 
-	return im, seeds, info, stats
+	return video_path, seeds, info, stats
 
 #on import run init
 def createHTMLGallery(images,info):
@@ -551,6 +547,9 @@ def layout():
 			width = st.slider("Width:", min_value=64, max_value=2048, value=st.session_state['defaults'].txt2vid.width, step=64)
 			height = st.slider("Height:", min_value=64, max_value=2048, value=st.session_state['defaults'].txt2vid.height, step=64)
 			cfg_scale = st.slider("CFG (Classifier Free Guidance Scale):", min_value=1.0, max_value=30.0, value=st.session_state['defaults'].txt2vid.cfg_scale, step=0.5, help="How strongly the image should follow the prompt.")
+			
+			#uploaded_images = st.file_uploader("Upload Image", accept_multiple_files=False, type=["png", "jpg", "jpeg", "webp"],
+			                                   #help="Upload an image which will be used for the image to image generation.")			
 			seed = st.text_input("Seed:", value=st.session_state['defaults'].txt2vid.seed, help=" The seed to use, if left blank a random seed will be generated.")
 			#batch_count = st.slider("Batch count.", min_value=1, max_value=100, value=st.session_state['defaults'].txt2vid.batch_count, step=1, help="How many iterations or batches of images to generate in total.")
 			#batch_size = st.slider("Batch size", min_value=1, max_value=250, value=st.session_state['defaults'].txt2vid.batch_size, step=1,
@@ -679,23 +678,60 @@ def layout():
 			#load_models(False, False, False, st.session_state["RealESRGAN_model"], CustomModel_available=st.session_state["CustomModel_available"], custom_model=custom_model)						
 			
 			# run video generation
-			image, seed, info, stats = txt2vid(prompts=prompt, gpu=st.session_state["defaults"].general.gpu,
+			video, seed, info, stats = txt2vid(prompts=prompt, gpu=st.session_state["defaults"].general.gpu,
 	                                           num_steps=st.session_state.sampling_steps, max_frames=int(st.session_state.max_frames),
 	                                           num_inference_steps=st.session_state.num_inference_steps,
 	                                           cfg_scale=cfg_scale,do_loop=st.session_state["do_loop"],
 	                                           seeds=seed, quality=100, eta=0.0, width=width,
 	                                           height=height, weights_path=custom_model, scheduler=scheduler_name,
-	                                           disable_tqdm=False, beta_start=st.session_state["beta_start"], beta_end=st.session_state["beta_end"],
-	                                           beta_schedule=beta_scheduler_type)
+	                                           disable_tqdm=False, fp=st.session_state.defaults.general.fp, beta_start=st.session_state["beta_start"], beta_end=st.session_state["beta_end"],
+	                                           beta_schedule=beta_scheduler_type, starting_image=None)
 			    
 			#message.success('Done!', icon="✅")
 			message.success('Render Complete: ' + info + '; Stats: ' + stats, icon="✅")
+			
+			history_tab,col1,col2,col3,PlaceHolder,col1_cont,col2_cont,col3_cont = st.session_state['historyTab']
+		
+			#if 'latestVideos' in st.session_state:
+				#for i in video:
+					##push the new image to the list of latest images and remove the oldest one
+					##remove the last index from the list\
+					#st.session_state['latestVideos'].pop()
+					##add the new image to the start of the list
+					#st.session_state['latestVideos'].insert(0, i)
+				#PlaceHolder.empty()
+				
+				#with PlaceHolder.container():
+					#col1, col2, col3 = st.columns(3)
+					#col1_cont = st.container()
+					#col2_cont = st.container()
+					#col3_cont = st.container()
+					
+					#with col1_cont:
+						#with col1:
+							#st.image(st.session_state['latestVideos'][0])
+							#st.image(st.session_state['latestVideos'][3])
+							#st.image(st.session_state['latestVideos'][6])
+					#with col2_cont:
+						#with col2:
+							#st.image(st.session_state['latestVideos'][1])
+							#st.image(st.session_state['latestVideos'][4])
+							#st.image(st.session_state['latestVideos'][7])
+					#with col3_cont:
+						#with col3:
+							#st.image(st.session_state['latestVideos'][2])
+							#st.image(st.session_state['latestVideos'][5])
+							#st.image(st.session_state['latestVideos'][8])
+					#historyGallery = st.empty()
+		
+				## check if output_images length is the same as seeds length
+				#with gallery_tab:
+					#st.markdown(createHTMLGallery(video,seed), unsafe_allow_html=True)
+		
+		
+				#st.session_state['historyTab'] = [history_tab,col1,col2,col3,PlaceHolder,col1_cont,col2_cont,col3_cont]			
 	
 			#except (StopException, KeyError):
 				#print(f"Received Streamlit StopException")
 	
-			# this will render all the images at the end of the generation but its better if its moved to a second tab inside col2 and shown as a gallery.
-			# use the current col2 first tab to show the preview_img and update it as its generated.
-			#preview_image.image(output_images)		
-
 

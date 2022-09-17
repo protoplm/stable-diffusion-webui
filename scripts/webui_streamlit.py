@@ -1,4 +1,13 @@
+# base webui import and utils.
 import streamlit as st
+
+# streamlit imports
+import streamlit_nested_layout
+
+#streamlit components section
+from st_on_hover_tabs import on_hover_tabs
+
+#other imports
 
 import warnings
 import os
@@ -7,9 +16,9 @@ from omegaconf import OmegaConf
 
 from sd_utils import *
 
-#streamlit components section
-from st_on_hover_tabs import on_hover_tabs
 
+# end of imports
+#---------------------------------------------------------------------------------------------------------------
 
 try:
 	# this silences the annoying "Some weights of the model checkpoint were not used when initializing..." message at start.
@@ -97,7 +106,11 @@ def layout():
 		
 	if tabs =='Stable Diffusion':		
 		txt2img_tab, img2img_tab, txt2vid_tab, postprocessing_tab = st.tabs(["Text-to-Image Unified", "Image-to-Image Unified", 
-	                                                                                                "Text-to-Video","Post-Processing"])				
+	                                                                                                "Text-to-Video","Post-Processing"])
+		#with home_tab:
+			#from home import layout
+			#layout()		
+		
 		with txt2img_tab:
 			from txt2img import layout
 			layout()
@@ -117,7 +130,7 @@ def layout():
 		layout()
 	
 	elif tabs == 'Textual Inversion':
-		from TextualInversion import layout
+		from textual_inversion import layout
 		layout()	
 	
 if __name__ == '__main__':

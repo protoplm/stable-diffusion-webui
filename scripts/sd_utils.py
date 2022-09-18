@@ -1063,7 +1063,7 @@ def check_prompt_length(prompt, comments):
 
 def save_sample(image, sample_path_i, filename, jpg_sample, prompts, seeds, width, height, steps, cfg_scale, 
                 normalize_prompt_weights, use_GFPGAN, write_info_files, prompt_matrix, init_img, uses_loopback, uses_random_seed_loopback,
-                save_grid, sort_samples, sampler_name, ddim_eta, n_iter, batch_size, i, denoising_strength, resize_mode, save_individual_images, model_name):
+                save_grid, sort_samples, sampler_name, ddim_eta, n_iter, batch_size, i, denoising_strength, resize_mode, save_individual_images, model_name=st.session_state["loaded_model"]):
 
     filename_i = os.path.join(sample_path_i, filename)
 
@@ -1095,7 +1095,7 @@ def save_sample(image, sample_path_i, filename, jpg_sample, prompts, seeds, widt
                             target="txt2img" if init_img is None else "img2img",
                                 prompt=prompts[i], ddim_steps=steps, toggles=toggles, sampler_name=sampler_name,
                                 ddim_eta=ddim_eta, n_iter=n_iter, batch_size=batch_size, cfg_scale=cfg_scale,
-                                seed=seeds[i], width=width, height=height, normalize_prompt_weights=normalize_prompt_weights, model_name=model_name)
+                                seed=seeds[i], width=width, height=height, normalize_prompt_weights=normalize_prompt_weights, model_name=st.session_state["loaded_model"])
         # Not yet any use for these, but they bloat up the files:
         # info_dict["init_img"] = init_img
         # info_dict["init_mask"] = init_mask

@@ -1063,7 +1063,7 @@ def check_prompt_length(prompt, comments):
 
 def save_sample(image, sample_path_i, filename, jpg_sample, prompts, seeds, width, height, steps, cfg_scale, 
                 normalize_prompt_weights, use_GFPGAN, write_info_files, prompt_matrix, init_img, uses_loopback, uses_random_seed_loopback,
-                save_grid, sort_samples, sampler_name, ddim_eta, n_iter, batch_size, i, denoising_strength, resize_mode, save_individual_images, model_name=st.session_state["loaded_model"]):
+                save_grid, sort_samples, sampler_name, ddim_eta, n_iter, batch_size, i, denoising_strength, resize_mode, save_individual_images, model_name):
 
     filename_i = os.path.join(sample_path_i, filename)
 
@@ -1451,7 +1451,7 @@ def process_images(
                     save_sample(gfpgan_image, sample_path_i, gfpgan_filename, jpg_sample, prompts, seeds, width, height, steps, cfg_scale,
                                                     normalize_prompt_weights, use_GFPGAN, write_info_files, prompt_matrix, init_img, uses_loopback,
                                                     uses_random_seed_loopback, save_grid, sort_samples, sampler_name, ddim_eta,
-                                                    n_iter, batch_size, i, denoising_strength, resize_mode, save_individual_images=False, model_name=st.session_state["loaded_model"])
+                                                    n_iter, batch_size, i, denoising_strength, resize_mode, False, st.session_state["loaded_model"])
 
                     output_images.append(gfpgan_image) #287
                     run_images.append(gfpgan_image)
@@ -1479,7 +1479,7 @@ def process_images(
 
                     save_sample(esrgan_image, sample_path_i, esrgan_filename, jpg_sample, prompts, seeds, width, height, steps, cfg_scale,
                                                     normalize_prompt_weights, use_GFPGAN, write_info_files, prompt_matrix, init_img, uses_loopback, uses_random_seed_loopback,
-                                                    save_grid, sort_samples, sampler_name, ddim_eta, n_iter, batch_size, i, denoising_strength, resize_mode, save_individual_images=False)
+                                                    save_grid, sort_samples, sampler_name, ddim_eta, n_iter, batch_size, i, denoising_strength, resize_mode, False, st.session_state["loaded_model"])
 
                     output_images.append(esrgan_image) #287
                     run_images.append(esrgan_image)
@@ -1505,7 +1505,7 @@ def process_images(
 
                     save_sample(gfpgan_esrgan_image, sample_path_i, gfpgan_esrgan_filename, jpg_sample, prompts, seeds, width, height, steps, cfg_scale,
                                                     normalize_prompt_weights, False, write_info_files, prompt_matrix, init_img, uses_loopback, uses_random_seed_loopback,
-                                                    save_grid, sort_samples, sampler_name, ddim_eta, n_iter, batch_size, i, denoising_strength, resize_mode, save_individual_images=False)
+                                                    save_grid, sort_samples, sampler_name, ddim_eta, n_iter, batch_size, i, denoising_strength, resize_mode, False, st.session_state["loaded_model"])
 
                     output_images.append(gfpgan_esrgan_image) #287
                     run_images.append(gfpgan_esrgan_image)

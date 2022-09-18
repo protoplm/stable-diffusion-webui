@@ -1,0 +1,37 @@
+batch_size: 1
+cfg_scale: 7.5
+ddim_eta: 0.0
+ddim_steps: 50
+fp: null
+height: 512
+n_iter: 5
+prompt:
+- fish
+- fish, red
+- fish, yellow
+- fish, blue
+- fish, red, yellow
+- fish, red, blue
+- fish, yellow, red
+- fish, yellow, blue
+- fish, blue, red
+- fish, blue, yellow
+- fish, red, yellow, blue
+- fish, red, blue, yellow
+- fish, yellow, red, blue
+- fish, yellow, blue, red
+- fish, blue, red, yellow
+- fish, blue, yellow, red
+realesrgan_model_name: RealESRGAN_x4plus
+sampler_name: k_euler_a
+seed: 911
+target: txt2img
+toggles:
+- 1
+- 2
+- 3
+- 4
+- 5
+- 7
+variant_amount: 0
+width: 512

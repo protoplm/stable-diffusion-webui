@@ -1,4 +1,5 @@
 # base webui import and utils.
+from email.encoders import encode_noop
 from webui_streamlit import st
 from sd_utils import *
 
@@ -138,6 +139,8 @@ def txt2img(prompt: str, ddim_steps: int, sampler_name: str, realesrgan_model_na
         #return [], seed, 'err', stats
 
 def layout():
+
+
     with st.form("txt2img-inputs"):
         st.session_state["generation_mode"] = "txt2img"
 
@@ -262,6 +265,11 @@ def layout():
                                            min_value=st.session_state['defaults'].txt2img.variant_amount.min_value, max_value=st.session_state['defaults'].txt2img.variant_amount.max_value,
                                            step=st.session_state['defaults'].txt2img.variant_amount.step)
                 variant_seed = st.text_input("Variant Seed:", value=st.session_state['defaults'].txt2img.seed, help="The seed to use when generating a variant, if left blank a random seed will be generated.")
+
+                adv_gen = st.selectbox("Advanced Generation:", [None,"sampler_name","cfg_scale","model.ckpt","sampling_steps"],
+                                                                index=[None,"sampler_name","cfg_scale","model.ckpt","sampling_steps"].index(None),
+                                                                help="Advanced Generation Tooltip") 
+
         galleryCont = st.empty()
 
         if generate_button:
@@ -270,16 +278,54 @@ def layout():
             load_models(False, st.session_state["use_GFPGAN"], st.session_state["use_RealESRGAN"], st.session_state["RealESRGAN_model"], st.session_state["CustomModel_available"],
                         st.session_state["custom_model"])  
             
-
             try:
-                #
-                output_images, seeds, info, stats = txt2img(prompt, st.session_state.sampling_steps, sampler_name, st.session_state["RealESRGAN_model"], batch_count, batch_size,
-                                                            cfg_scale, seed, height, width, separate_prompts, normalize_prompt_weights, save_individual_images,
-                                                            save_grid, group_by_prompt, save_as_jpg, st.session_state["use_GFPGAN"], st.session_state["use_RealESRGAN"], st.session_state["RealESRGAN_model"],
-                                                            variant_amount=variant_amount, variant_seed=variant_seed, write_info_files=write_info_files)
-                
-                message.success('Render Complete: ' + info + '; Stats: ' + stats, icon="✅")
-        
+                if not adv_gen:
+
+                    output_images, seeds, info, stats = txt2img(prompt, st.session_state.sampling_steps, sampler_name, st.session_state["RealESRGAN_model"], batch_count, batch_size,
+                                                                cfg_scale, seed, height, width, separate_prompts, normalize_prompt_weights, save_individual_images,
+                                                                save_grid, group_by_prompt, save_as_jpg, st.session_state["use_GFPGAN"], st.session_state["use_RealESRGAN"], st.session_state["RealESRGAN_model"],
+                                                                variant_amount=variant_amount, variant_seed=variant_seed, write_info_files=write_info_files)
+                    
+                    message.success('Render Complete: ' + info + '; Stats: ' + stats, icon="✅")
+                    
+                else:
+                    #gen_dict: used to map names from the selection box, and to control which variable is changed in txt2img call.
+                    # couldn't find a cleaner way to do this that didn't involve a multi-line if/else for every step. model changes may be
+                    # the only one that requires alternate logic
+
+                    gen_dict = {'sampler_name':sampler_name, 'cfg_scale':cfg_scale, 'model.ckpt': st.session_state.custom_model, 'sampling_steps':st.session_state.sampling_steps}
+                    gen_lookup = {"sampler_name":sampler_name_list, 'cfg_scale':list(range(1,17)), 'model.ckpt': st.session_state["custom_models"], 'sampling_steps': list(range(1,100,10))}
+                    output_images_list, captions = [], []
+                    for i in gen_lookup[adv_gen]:
+                        gen_dict[adv_gen] = i
+
+                        if adv_gen == 'model.ckpt': #If the next model is not already loaded, load it. Else, skip load_models()
+                            if st.session_state["custom_model"] != i: 
+                                st.session_state["custom_model"] = i
+                                load_models(False, st.session_state["use_GFPGAN"], st.session_state["use_RealESRGAN"], st.session_state["RealESRGAN_model"], st.session_state["CustomModel_available"],
+                                                        st.session_state["custom_model"]) 
+                        if adv_gen == 'sampling_steps': # Not sure if just using 'sampling_steps' in the function call would break anything, else this could be removed
+                            st.session_state.sampling_steps = i 
+
+                        output_images, seeds, info, stats = txt2img(prompt,st.session_state.sampling_steps, gen_dict['sampler_name'], st.session_state["RealESRGAN_model"], batch_count, batch_size,
+                                                                    gen_dict['cfg_scale'], seed, height, width, separate_prompts, normalize_prompt_weights, save_individual_images,
+                                                                    save_grid, group_by_prompt, save_as_jpg, st.session_state["use_GFPGAN"], st.session_state["use_RealESRGAN"], st.session_state["RealESRGAN_model"],
+                                                                    variant_amount=variant_amount, variant_seed=variant_seed, write_info_files=write_info_files)
+                        
+                        output_images_list.append(output_images[0])
+                        captions.append(str(i))
+
+                    # Generate and preview grid. This step is likely handled better by sd_utils, but handling the multiple option logic there seems tricky.
+                    ## Process in sd_utils to solve these?
+                    ## TODO: save image in location
+                    ## TODO: handle batches - it probably just explodes if batch size > 1
+                    ## TODO: fix stats
+                    grid_image = image_grid(imgs=output_images_list,batch_size=round(math.sqrt(len(gen_lookup[adv_gen])+1),0),captions=captions)
+                    st.session_state["preview_image"].image(grid_image)
+                    message.success('Render Complete: ' + info + '; Stats: ' + stats, icon="✅")   
+
+
+
                 #history_tab,col1,col2,col3,PlaceHolder,col1_cont,col2_cont,col3_cont = st.session_state['historyTab']
         
                 #if 'latestImages' in st.session_state:
